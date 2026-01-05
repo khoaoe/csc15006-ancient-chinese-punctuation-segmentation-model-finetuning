@@ -1,0 +1,34 @@
+% ==================================================================
+% CHAPTER 2: BACKGROUND AND RELATED WORK
+% ==================================================================
+\chapter{Cơ sở lý thuyết}
+\label{chap:background}
+
+Chương này trình bày các kiến thức nền tảng cần thiết để hiểu rõ phương pháp tiếp cận của đồ án, bao gồm định nghĩa bài toán xử lý văn bản Hán Cổ, tổng quan về mô hình ngôn ngữ lớn chuyên biệt cho miền dữ liệu này, và kỹ thuật tinh chỉnh tham số hiệu quả (PEFT) được áp dụng.
+
+\section{Bài toán Xử lý văn bản Hán Cổ}
+
+Khác với tiếng Anh hay tiếng Việt hiện đại, văn bản Hán Cổ có đặc điểm \textbf{các ký tự được viết liền mạch} không có khoảng trắng phân cách. Do đó, để máy tính có thể hiểu và xử lý, cần thực hiện hai nhiệm vụ cơ bản:
+
+\subsection{Phân tách từ (Word Segmentation)}
+Phân tách từ là quá trình xác định ranh giới giữa các từ trong một chuỗi ký tự liên tục. Trong ngữ cảnh Hán Cổ, một từ có thể là đơn tiết (một ký tự) hoặc đa tiết (hai ký tự trở lên).
+\\
+\textbf{Định nghĩa bài toán:} Cho một chuỗi ký tự đầu vào $X = \{x_1, x_2, ..., x_n\}$, nhiệm vụ là chèn các ký tự phân tách (thường là khoảng trắng) để tạo thành chuỗi đầu ra $Y$ gồm các từ $w_1, w_2, ..., w_m$.
+
+\subsection{Chấm câu (Punctuation Restoration)}
+Điểm câu là nhiệm vụ khôi phục các dấu câu đã bị lược bỏ trong văn bản gốc. Các dấu câu phổ biến trong chuẩn EvaHan bao gồm dấu phẩy, dấu ngắt (、), dấu chấm, dấu hỏi, dấu chấm thang, và các loại dấu ngoặc kép.
+\\
+Trong đồ án này, hai tác vụ trên được mô hình hóa dưới dạng bài toán \textbf{Text Generation} (sinh văn bản): Mô hình nhận đầu vào là chuỗi văn bản thô và sinh ra chuỗi văn bản đã được chuẩn hóa với đầy đủ khoảng trắng và dấu câu.
+
+\section{Mô hình ngôn ngữ lớn cho Hán Cổ}
+Để giải quyết sự khan hiếm dữ liệu và sự phức tạp về ngữ nghĩa của Hán Cổ, nhóm nghiên cứu tại Nanjing Agricultural University đã phát triển dòng mô hình \textbf{Xunzi}.
+\\
+Trong đồ án này, nhóm em sử dụng \textbf{Xunzi-Qwen3-8B} làm mô hình nền tảng. Đây là phiên bản được tiếp tục huấn luyện từ Qwen2.5/Qwen3 trên corpus Hán Cổ chất lượng cao (như Siku Quanshu - Tứ Khố Toàn Thư). Lợi thế của Xunzi là mô hình đã học được các cấu trúc ngữ pháp và từ vựng cổ, giúp việc fine-tune đạt hội tụ nhanh hơn so với các mô hình đa dụng thông thường.
+
+\section{Kỹ thuật Parameter-Efficient Fine-Tuning - PEFT}
+
+Việc tinh chỉnh toàn bộ tham số (Full Fine-tuning) của một mô hình 8 tỷ tham số đòi hỏi tài nguyên tính toán rất lớn và dễ dẫn đến hiện tượng quên tri thức cũ (catastrophic forgetting). Do đó, đồ án áp dụng kỹ thuật PEFT, cụ thể là \textbf{LoRA} (\textbf{Low-Rank Adaptation}).
+
+
+
+Việc kết hợp Xunzi-Qwen3-8B với LoRA tạo ra sự cân bằng tốt giữa hiệu năng (nhờ pre-train của trên văn bản Hán Cổ) và hiệu quả tài nguyên (nhờ LoRA).

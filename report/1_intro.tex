@@ -1,0 +1,53 @@
+% ==================================================================
+% CHAPTER 1: INTRODUCTION
+% ==================================================================
+\chapter{Tổng quan}
+\label{chap:introduction}
+
+\section{Đặt vấn đề}
+
+Văn bản Hán Cổ (Ancient Chinese) đóng vai trò quan trọng trong việc lưu giữ lịch sử, văn hóa và triết học của nền văn minh Á Đông. Tuy nhiên, rào cản lớn nhất trong việc tiếp cận và xử lý các văn bản này là đặc điểm \texttt{scriptio continua} (viết liền không dấu). Trong nguyên bản, các ký tự được viết liên tiếp nhau mà không có khoảng trắng (whitespace) để phân tách từ hay các dấu câu (punctuation) để ngắt câu. Việc thiếu vắng các chỉ dấu này gây ra sự mơ hồ về ngữ nghĩa (ambiguity), khiến việc đọc hiểu trở nên khó khăn ngay cả với các chuyên gia, đồng thời gây trở ngại lớn cho các tác vụ Xử lý ngôn ngữ tự nhiên (NLP) ở hạ nguồn như Dịch máy (Machine Translation) hay Phân tích cú pháp (Syntactic Parsing).
+
+Do đó, nhiệm vụ Tự động Phân tách từ (Word Segmentation) và Điểm câu (Punctuation) là bước tiền xử lý bắt buộc và tối quan trọng. Trong những năm gần đây, sự phát triển của các Mô hình ngôn ngữ lớn (Large Language Models - LLMs) đã mở ra hướng đi mới cho bài toán này. Tuy nhiên, việc áp dụng trực tiếp các LLM hiện đại vào Hán Cổ gặp nhiều thách thức về tính trung thực (fidelity) của văn bản đầu ra và khả năng xử lý các ngữ cảnh dài.
+
+Đồ án này tập trung giải quyết vấn đề trên bằng cách tinh chỉnh (Fine-tuning) mô hình chuyên dụng cho Hán Cổ, hướng tới việc xây dựng một hệ thống có khả năng tự động hóa quy trình phân từ và điểm câu với độ chính xác cao.
+
+\section{Mục tiêu đồ án}
+
+Mục tiêu chính của đồ án là xây dựng và đánh giá một pipeline hoàn chỉnh cho bài toán "Ancient Chinese Segmentation \& Punctuation". Cụ thể, đồ án tập trung vào các mục tiêu sau:
+
+\begin{itemize}
+    \item \textbf{Nghiên cứu và ứng dụng LLM:} Sử dụng mô hình \textbf{Xunzi-Qwen3-8B} – một LLM được pre-train trên dữ liệu cổ văn chất lượng cao – làm nền tảng (Base Model).
+    \item \textbf{So sánh hiệu năng (Performance Comparison):} Thực hiện so sánh định lượng giữa mô hình Baseline (chạy ở chế độ Zero-shot Inference) và mô hình sau khi được huấn luyện tinh chỉnh (Supervised Fine-Tuning - SFT) sử dụng kỹ thuật \textbf{LoRA} (Low-Rank Adaptation).
+    \item \textbf{Đảm bảo tính trung thực (Fidelity):} Xây dựng cơ chế Inference Pipeline thông minh (sử dụng Sliding Window và Robust Alignment) để đảm bảo mô hình chỉ thêm dấu câu/khoảng trắng mà tuyệt đối không làm thay đổi, thêm bớt các ký tự gốc của văn bản (hallucination).
+    \item \textbf{Đánh giá toàn diện:} Sử dụng các thước đo tiêu chuẩn như $F1_{seg}$, $F1_{punc}$, và $F1_{joint}$ trên tập dữ liệu chuẩn \textbf{EvaHan 2022}.
+\end{itemize}
+
+\section{Phạm vi nghiên cứu}
+
+Đồ án được giới hạn trong các phạm vi cụ thể sau về dữ liệu và kỹ thuật:
+
+\begin{itemize}
+    \item \textbf{Dữ liệu (Dataset):} Sử dụng tập dữ liệu từ cuộc thi \textbf{EvaHan 2022} (dữ liệu chính) và bộ \texttt{Zuozhuan} (Tả Truyện) để huấn luyện và kiểm thử. Đây là các tập dữ liệu chuẩn mực trong cộng đồng nghiên cứu Digital Humanities.
+    \begin{itemize}
+        \item Nguồn tải được nhóm tìm kiếm trên GitHub: \href{https://github.com/farlit/ACDS}{farlit/ACDS}
+    \item \textbf{Mô hình (Model):} Tập trung vào kiến trúc \textbf{Qwen3-8B} phiên bản \textbf{Xunzi}. Đây là mô hình decoder-only transformer kích thước 7-8 tỷ tham số, phù hợp với tài nguyên tính toán khả dụng.
+    \item \textbf{Kỹ thuật huấn luyện (Training Techniques):}
+    \begin{itemize}
+        \item Sử dụng thư viện \textbf{Unsloth} để tối ưu hóa bộ nhớ VRAM và tốc độ huấn luyện.
+        \item Áp dụng kỹ thuật \textbf{PEFT} (Parameter-Efficient Fine-Tuning) thông qua \textbf{LoRA} adapter, thay vì Full Fine-tuning toàn bộ tham số.
+        \item Sử dụng \textbf{Retrieval-Augmented Generation (RAG)} ở mức độ đơn giản (SPEADO strategy) để cải thiện prompt đầu vào thông qua việc tìm kiếm các ví dụ tương đồng (Few-shot learning).
+    \end{itemize}
+\end{itemize}
+
+\section{Cấu trúc báo cáo}
+
+Báo cáo được tổ chức thành các chương như sau:
+\begin{itemize}
+    \item \textbf{Chương 1: Tổng quan} - Giới thiệu bài toán và mục tiêu nghiên cứu.
+    \item \textbf{Chương 2: Cơ sở lý thuyết} - Trình bày về LLM, Xunzi model và kỹ thuật LoRA.
+    \item \textbf{Chương 3: Phương pháp nghiên cứu} - Mô tả quy trình xử lý dữ liệu, thiết lập huấn luyện với Unsloth và chiến lược Prompting.
+    \item \textbf{Chương 4: Thiết kế hệ thống Inference} - Đi sâu vào thuật toán Sliding Window và kỹ thuật Robust Alignment để xử lý văn bản dài.
+    \item \textbf{Chương 5: Thực nghiệm và Đánh giá} - Phân tích kết quả so sánh giữa Baseline và Fine-tuned model dựa trên các chỉ số F1 và Fidelity.
+    \item \textbf{Chương 6: Kết luận} - Tổng kết đóng góp và hướng phát triển.
+\end{itemize}

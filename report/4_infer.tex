@@ -1,0 +1,58 @@
+% ==================================================================
+% CHAPTER 4: INFERENCE SYSTEM DESIGN
+% ==================================================================
+\chapter{Thiết kế hệ thống Inference}
+\label{chap:inference}
+
+Sau quá trình Fine-tuning, mô hình có khả năng thực hiện tác vụ trên các đoạn văn ngắn. Tuy nhiên, để triển khai thực tế trên các văn bản Hán Cổ dài (như sách, truyện) và đảm bảo tính chính xác tuyệt đối về mặt ký tự (Fidelity), cần một hệ thống Inference được thiết kế chuyên biệt. Chương này trình bày kiến trúc của \texttt{InferencePipeline} được xây dựng trong đồ án.
+
+\section{Chiến lược xử lý văn bản dài}
+
+Các mô hình ngôn ngữ lớn đều có giới hạn về cửa sổ ngữ cảnh (context window). Hơn nữa, chất lượng dự đoán của mô hình thường suy giảm ở các vị trí đầu và cuối của chuỗi đầu vào do thiếu ngữ cảnh hai chiều (boundary effects). Để giải quyết vấn đề này, nhóm em áp dụng chiến lược **Sliding Window với cơ chế Keep-Center**.
+
+\subsection{Sliding Window}
+Văn bản dài đầu vào $D$ được chia thành các đoạn nhỏ $C_1, C_2, ..., C_n$ dựa trên hai tham số chính:
+\begin{itemize}
+    \item \textbf{Chunk Size ($L$):} Độ dài tối đa của mỗi đoạn đưa vào mô hình (thiết lập là $1024$ ký tự trong thực nghiệm).
+    \item \textbf{Overlap Size ($O$):} Độ dài phần chồng lấp giữa hai đoạn liền kề (thiết lập là $256$ ký tự).
+\end{itemize}
+
+\subsection{Cơ chế Keep-Center (Stride Slicing)}
+Khác với việc ghép nối đơn thuần các đoạn dự đoán (có thể gây lặp hoặc mất từ ở biên), cơ chế \textit{Keep-Center} chỉ giữ lại phần dự đoán ở giữa của cửa sổ trượt, nơi mô hình có đầy đủ ngữ cảnh nhất (cả bên trái và bên phải).
+
+Với mỗi đoạn $C_i$ (trừ đoạn đầu và cuối), phần dự đoán được giữ lại ($P_{core}$) được xác định như sau:
+\begin{equation}
+    P_{core} = P_{full}[O : L - O]
+\end{equation}
+Trong đó $P_{full}$ là toàn bộ kết quả dự đoán của đoạn. Phần chồng lấp $O$ ở hai đầu (vốn dễ bị lỗi) sẽ bị loại bỏ và thay thế bằng dự đoán chất lượng cao hơn từ các đoạn liền kề $C_{i-1}$ và $C_{i+1}$. Thuật toán này được hiện trong hàm \texttt{_slice_by_raw_count} trong file \texttt{xunzi-finetune-infer.ipynb}, đảm bảo việc cắt ghép dựa trên số lượng ký tự gốc để không làm gãy các cấu trúc câu.
+
+\subsection{Cơ chế Retrieval-Augmented thời gian thực}
+
+Tận dụng module \texttt{SpeadoRetriever} đã xây dựng từ phần Fine-tuning như đã trình bày ở trên, thực hiện truy xuất tri thức động ngay trong quá trình inference. 
+\\
+Quan trọng là, \texttt{SpeadoRetriver} sẽ chỉ tìm kiếm ứng viên từ tập Train chứ không phải Test, nhằm tránh rò rỉ dữ liệu (data leakage) và đảm bảo tính khách quan trong đánh giá.
+
+Cơ chế này giúp mô hình "nhớ lại" cách ngắt câu trong các ngữ cảnh tương tự mà nó đã học, hoạt động như một cơ chế \textit{Few-shot Prompting} năng động mà không cần nạp thêm dữ liệu vào bộ nhớ trọng số.
+
+\section{Đảm bảo tính trung thực văn bản (Robustness and Fidelity)}
+
+Một trong những thách thức lớn nhất khi sử dụng LLMs cho bài toán chỉnh sửa văn bản là hiện tượng "ảo giác" (hallucination) - mô hình có thể tự ý thay đổi, thêm hoặc bớt các ký tự gốc, dẫn đến sai lệch nội dung văn bản cổ (Fidelity < 1.0).
+
+Để khắc phục triệt để vấn đề này, nhóm em phát triển thuật toán \textbf{Post-hoc Robust Alignment} 
+
+\subsection{Nguyên lý hoạt động}
+Thuật toán so sánh chuỗi ký tự gốc và chuỗi do mô hình sinh ra để tái cấu trúc lại kết quả cuối cùng. Nhóm em sử dụng giải thuật so khớp chuỗi (dựa trên \texttt{Longest Common Subsequence}) thông qua thư viện \texttt{difflib} để xác định các thao tác biến đổi: \texttt{Insert, Delete, Replace, Equal}.
+
+\subsection{Luật căn chỉnh nghiêm ngặt}
+Áp dụng các luật nghiêm ngặt sau để chấp nhận hoặc từ chối các thay đổi từ mô hình:
+\begin{enumerate}
+    \item \textbf{EQUAL (Giữ nguyên):} Nếu ký tự trong Output khớp với Input, giữ nguyên ký tự đó.
+    \item \textbf{INSERT (Chèn):} Chỉ chấp nhận phép chèn nếu ký tự được chèn thuộc tập hợp \textbf{ALLOWED\_PUNCS} (danh sách dấu câu hợp lệ và khoảng trắng). Mọi ký tự lạ (chữ Hán lạ, ký tự đặc biệt không mong muốn) đều bị loại bỏ.
+    \item \textbf{DELETE (Xóa):} Tuyệt đối không chấp nhận phép xóa. Nếu mô hình bỏ sót một ký tự gốc, thuật toán sẽ cưỡng chế khôi phục ký tự đó từ Input.
+    \item \textbf{REPLACE (Thay thế):} Nếu mô hình thay thế một ký tự gốc bằng một ký tự khác (ví dụ: nhầm lẫn chữ Hán), hệ thống sẽ khôi phục ký tự gốc từ Input. Nếu phép thay thế thực chất là thêm dấu câu (ví dụ: thay "A" bằng "A,"), hệ thống sẽ tách nó thành [Ký tự gốc] + [Dấu câu].
+\end{enumerate}
+
+\subsection{Post-processing đầu ra}
+Trước khi căn chỉnh, đầu ra của mô hình được đi qua hàm \texttt{clean_model_output} để loại bỏ các thẻ đặc biệt như \texttt{<think>...</think>} (chuỗi suy nghĩ của mô hình mà Qwen hầu như luôn trả về trong output) hoặc các token kết thúc câu của ChatML, đảm bảo đầu vào cho thuật toán căn chỉnh là văn bản cần thiết.
+\\
+Kết quả của thuật toán này là một chuỗi văn bản đầu ra có độ trung thực (Fidelity) trong thực nghiệm là tuyệt đối ($100\%$), trong khi vẫn giữ được các dự đoán dấu câu chính xác của mô hình.

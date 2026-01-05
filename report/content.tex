@@ -1,0 +1,137 @@
+% ==================================================================
+% CHAPTER 1: INTRODUCTION
+% ==================================================================
+\chapter{Introduction}
+
+\section{Problem Statement}
+% Trình bày về khó khăn của văn bản Hán Cổ (không dấu, viết liền).
+% Nêu sự cần thiết của bài toán Segmentation & Punctuation cho NLP.
+
+\section{Project Objectives}
+% Mục tiêu: Xây dựng pipeline tự động hóa với độ chính xác cao và giữ nguyên văn bản gốc (fidelity).
+
+\section{Scope of Study}
+% Dữ liệu: EvaHan 2022.
+% Mô hình: Xunzi-Qwen3-8B.
+
+% ==================================================================
+% CHAPTER 2: BACKGROUND AND RELATED WORK
+% ==================================================================
+\chapter{Background and Related Work}
+
+\section{Ancient Chinese Processing Tasks}
+% Định nghĩa bài toán Word Segmentation và Punctuation dưới góc độ toán học (Sequence Labeling).
+
+\section{Large Language Models for Classical Chinese}
+% Giới thiệu dòng Qwen và đặc biệt là Xunzi-Qwen3-8B (được pre-train trên cổ văn).
+
+\section{Parameter-Efficient Fine-Tuning (PEFT)}
+\subsection{Low-Rank Adaptation (LoRA)}
+% Giải thích ngắn gọn về LoRA: tại sao chọn nó thay vì Full Fine-tune (tiết kiệm VRAM, hiệu quả).
+
+% ==================================================================
+% CHAPTER 3: METHODOLOGY
+% (Trọng tâm: Dựa trên file xunzi-finetune.ipynb)
+% ==================================================================
+\chapter{Methodology}
+
+\section{Dataset Preparation}
+\subsection{The EvaHan 2022 Dataset}
+% Mô tả nguồn dữ liệu, số lượng mẫu train/test.
+
+\subsection{Preprocessing Pipeline}
+% Mô tả các bước: 
+% 1. Strip POS tags (loại bỏ nhãn từ loại).
+% 2. Normalize whitespace.
+% 3. Hard Sliding Window Strategy (cắt đoạn 1024 token để train).
+
+\section{Retrieval-Augmented Strategy (SPEADO)} 
+% [Quan trọng] Mô tả kỹ thuật SPEADO từ notebook finetune.
+\subsection{MinHash LSH Indexing}
+% Giải thích cách dùng MinHash để tìm kiếm nhanh các câu tương đồng trong tập train.
+\subsection{Dynamic Few-Shot Prompting}
+% Mô tả cách chèn "Reference Example" vào prompt nếu độ tương đồng > threshold.
+
+\section{Model Training Configuration}
+% Mô tả cấu hình Unsloth:
+% - Base Model: Xunzi-Qwen3-8B
+% - LoRA Rank: 32, Alpha: 64
+% - Target Modules: Attention + MLP (gate_proj, up_proj...)
+% - Loss Function: Completion-only Loss (chỉ tính loss trên phần Assistant trả lời).
+
+% ==================================================================
+% CHAPTER 4: INFERENCE SYSTEM DESIGN
+% (Trọng tâm: Dựa trên file xunzi-finetune-infer.ipynb - Kỹ thuật)
+% ==================================================================
+\chapter{Inference System Design}
+
+\section{Long-Text Handling Strategy}
+\subsection{Keep-Center Sliding Window}
+% Giải thích thuật toán inference:
+% - Chia văn bản dài thành các chunk.
+% - Overlap vùng biên.
+% - Chỉ lấy kết quả ở vùng giữa (center) để tránh lỗi biên.
+
+\section{Robustness and Fidelity Mechanism} 
+% [Điểm nhấn kỹ thuật] Đây là phần "ăn điểm" về tính kỹ thuật.
+\subsection{Problem of Hallucination in LLMs}
+% Nêu vấn đề: LLM hay tự ý sửa chữ hoặc thêm bớt ký tự.
+\subsection{Post-hoc Robust Alignment Algorithm}
+% Mô tả thuật toán dùng `difflib` trong class InferencePipeline:
+% - So sánh chuỗi Raw và chuỗi Pred.
+% - Ràng buộc cứng: Chỉ chấp nhận thay đổi là dấu câu/space.
+% - Khôi phục 100% ký tự gốc nếu model sai.
+
+% ==================================================================
+% CHAPTER 5: EXPERIMENTS AND RESULTS
+% (So sánh giữa xunzi-baseline-infer và xunzi-finetune-infer)
+% ==================================================================
+\chapter{Experiments and Evaluation}
+
+\section{Experimental Setup}
+\subsection{Baseline Configuration}
+% Mô tả cấu hình Zero-shot từ file xunzi-baseline-infer.ipynb (không LoRA, không Retrieval).
+\subsection{Evaluation Metrics}
+% Định nghĩa các công thức:
+% - Seg F1, Punc F1.
+% - Joint F1 (Punc + Seg).
+% - Fidelity (Character Error Rate) & OSC Score.
+
+\section{Results and Analysis}
+
+\subsection{Performance Comparison}
+% Bảng so sánh kết quả:
+% | Metric      | Baseline (Zero-shot) | Fine-tuned (Ours) |
+% |-------------|----------------------|-------------------|
+% | Seg F1      | ...                  | ...               |
+% | Punc F1     | ...                  | ...               |
+% | Fidelity    | ...                  | ...               |
+% -> Nhận xét mức độ cải thiện vượt bậc sau khi fine-tune.
+
+\subsection{Error Analysis}
+% Chèn Confusion Matrix (Heatmap) từ file infer.
+% Phân tích các cặp dấu câu model hay nhầm (ví dụ: Comma vs Pause).
+
+\subsection{Impact of Input Length}
+% Chèn biểu đồ Line chart (F1 score vs Length Bucket) từ file infer.
+% Đánh giá độ ổn định của model với câu dài/ngắn.
+
+% ==================================================================
+% CHAPTER 6: CONCLUSION
+% ==================================================================
+\chapter{Conclusion and Future Work}
+
+\section{Summary of Contributions}
+% Tổng kết: Đã xây dựng pipeline hoàn chỉnh từ fine-tune đến inference an toàn.
+
+\section{Limitations}
+% Ví dụ: Tốc độ suy luận còn chậm do LLM lớn, phụ thuộc chất lượng dữ liệu.
+
+\section{Future Directions}
+% Ví dụ: Thử nghiệm Quantization 4-bit sâu hơn, mở rộng sang triều đại khác.
+
+% ==================================================================
+% REFERENCES & APPENDIX
+% ==================================================================
+% \bibliographystyle{plain}
+% \bibliography{references}

@@ -1,0 +1,127 @@
+% ==================================================================
+% CHAPTER 3: METHODOLOGY
+% ==================================================================
+\chapter{Phương pháp Fine-Tuning}
+\label{chap:methodology}
+
+Dựa trên cơ sở lý thuyết đã trình bày, chương này mô tả chi tiết quy trình xây dựng pipeline fine-tune, từ khâu chuẩn bị dữ liệu, thiết kế cơ chế truy xuất tri thức (Retrieval) đến cấu hình huấn luyện mô hình. Phương pháp tiếp cận được thiết kế nhằm tối ưu hóa hiệu năng trên nguồn tài nguyên giới hạn (GPU T4 Kaggle) đồng thời đảm bảo tính chính xác cao cho đầu ra.
+
+\section{Chuẩn bị Dữ liệu}
+
+\subsection{Nguồn dữ liệu và Tiền xử lý}
+Đồ án sử dụng tập dữ liệu từ cuộc thi \textbf{EvaHan 2022}. Dữ liệu gốc bao gồm các cặp câu đầu vào (Input) là chuỗi ký tự thông không có dấu câu hay khoảng trắng và đầu ra (Output) kèm theo dấu câu và nhãn từ loại (POS tags). Quy trình tiền xử lý được thực hiện qua các bước:
+\begin{itemize}
+    \item \textbf{Loại bỏ nhãn POS:} Sử dụng regex để loại bỏ toàn bộ các nhãn POS (ví dụ: \texttt{/n}, \texttt{/v}) khỏi dữ liệu đích, chỉ giữ lại văn bản thuần và dấu câu.
+    \item \textbf{Chuẩn hóa:} Loại bỏ các khoảng trắng thừa và chuẩn hóa về dạng \textit{half-width characters} đúng với văn bản tiếng Trung.
+    \item \textbf{Tách biệt Raw/Target:} Với mỗi mẫu dữ liệu, nhóm em tạo ra hai phiên bản:
+    \begin{itemize}
+        \item \texttt{raw}: Chuỗi ký tự gốc, loại bỏ hoàn toàn dấu câu và khoảng trắng (để mô phỏng đầu vào thực tế).
+        \item \texttt{target}: Chuỗi ký tự có chứa dấu câu và khoảng trắng phân từ (làm nhãn huấn luyện).
+    \end{itemize}
+\end{itemize}
+
+\subsection{Chiến lược Hard Sliding Window Chunking}
+Do độ dài văn bản Hán Cổ thường vượt quá giới hạn ngữ cảnh (context window) của mô hình, và để tránh hiện tượng mất mát thông tin ở biên, nhóm em áp dụng chiến lược \textbf{Hard Sliding Window}:
+\begin{itemize}
+    \item \textbf{Cơ chế:} Văn bản dài được cắt thành các đoạn (chunks) có độ dài cố định với \texttt{MAX\_SEQ\_LENGTH} ($1024$ tokens).
+    \item \textbf{Overlap:} Các đoạn liền kề có phần chồng lấp (\texttt{overlap}) là $256$ tokens. Điều này đảm bảo ngữ cảnh ở cuối đoạn trước được lặp lại ở đầu đoạn sau, giúp mô hình duy trì tính liên tục.
+    \item \textbf{Reserved Tokens:} Dành riêng $200$ tokens trong mỗi cửa sổ cho phần System Prompt và Reference Example, đảm bảo tổng độ dài không vượt quá giới hạn bộ nhớ.
+    \item \textbf{Alignment:} Một điểm quan trọng trong cài đặt là việc ánh xạ chính xác chỉ số ký tự giữa \texttt{raw} và \texttt{target} để đảm bảo khi cắt đoạn, các nhãn dấu câu không bị lệch so với ký tự gốc.
+\end{itemize}
+
+
+\section{Cấu hình Fine-tuning}
+
+\subsection{Kiến trúc Mô hình và Unsloth}
+\begin{itemize}
+    \item \textbf{Base Model:} \texttt{Xunzi-Qwen3-8B}
+    \item \textbf{Unsloth Optimization:} Sử dụng thư viện \textbf{Unsloth} để nạp mô hình dưới dạng 4-bit (QLoRA). Unsloth giúp giảm lượng VRAM tiêu thụ và tăng tốc độ huấn luyện lên đáng kể so với thư viện Transformers thuần.
+\end{itemize}
+
+\subsection{Cấu hình LoRA}
+Thay vì huấn luyện toàn bộ tham số, nhóm em gắn các adapter LoRA vào mô hình:
+
+\subsection{Cấu hình fine-tune}
+Dựa trên thư viện \textbf{Unsloth} và \textbf{PEFT}, cấu hình LoRA được thiết lập như sau:
+\begin{itemize}
+    \item \textbf{Rank ($r$):} $32$ - Đủ lớn để mô hình học được các đặc trưng của bài toán phân từ/điểm câu.
+    \item \textbf{Alpha ($\alpha$):} $64$ - Hệ số scaling factor (thường chọn $\alpha = 2 \times r$ để ổn định gradient).
+    \item \textbf{Target Modules:} Áp dụng LoRA lên tất cả các module tuyến tính trong block Attention và MLP, bao gồm: \texttt{q_proj}, \texttt{k_proj}, \texttt{v_proj}, \texttt{o_proj}, \texttt{gate_proj}, \texttt{up_proj}, \texttt{down_proj}. Việc áp dụng rộng rãi này giúp tối đa hóa khả năng học của mô hình đối với các đặc trưng ngôn ngữ cổ.
+    \item \textbf{Quantization:} Sử dụng kỹ thuật \textit{4-bit quantization} (thông qua \texttt{bitsandbytes}) để giảm yêu cầu VRAM xuống dưới 16GB, cho phép chạy trên GPU T4 (của Kaggle).
+\end{itemize}
+
+\subsection{Chiến lược "Small Batch Size Training"}
+Dựa trên nghiên cứu gần đây về hiệu quả của \textbf{Small Batch Size}[cite: 533, 548], nhóm em thiết lập:
+\begin{itemize}
+    \item \textbf{Batch Size = 1:} Thiết lập này giúp quá trình huấn luyện ổn định hơn và tận dụng tối đa khả năng khái quát hóa của mô hình mà không cần đến các kỹ thuật Gradient Accumulation phức tạp[cite: 531, 533].
+    \item \textbf{Gradient Accumulation = 1:} Tránh việc tích lũy gradient, giúp tiết kiệm bộ nhớ và giảm độ trễ cập nhật trọng số, phù hợp với khuyến nghị rằng batch size nhỏ thường robust hơn với các hyperparameter [cite: 537, 540]
+    \item \textbf{Optimizer:} Sử dụng \texttt{adamw\_8bit} với $\beta_2 = 0.999$. Giá trị $\beta_2$ cao phù hợp với việc huấn luyện batch size nhỏ, giúp duy trì tính ổn định của momentum[cite: 697].
+\end{itemize}
+
+\subsection{các Siêu tham số Huấn luyện khác}
+Các siêu tham số được thiết lập như sau:
+
+\begin{itemize}
+    [cite_start]\item \textbf{Learning Rate:} $2 \times 10^{-4}$ - Đây là giá trị phổ biến khi huấn luyện LoRA trên các mô hình lớn, giúp cân bằng giữa tốc độ hội tụ và ổn định.
+    \item \textbf{Epochs:} $2$ - Số vòng lặp huấn luyện, tận dụng được tối đa tài nguyên miễn phí của Kaggle. Theo thử nghiệm thực tế trên tập train EvaHan nhỏ hơn một chút (để không dùng hết tài nguyên free, vừa đủ 3 epoch) thì ở epoch thứ 3 mô hình bắt đầu có dấu hiệu overfitting => chọn 2 epochs là hợp lý.
+    \item \textbf{Warm-up Steps:} $5\%$ tổng số bước huấn luyện - Thay vì một con số cố định, bước khởi động được tính động dựa trên tổng số bước ($warmup\_ratio = 0.05$) để ổn định quá trình hội tụ ban đầu.
+    \item \textbf{LR Scheduler:} \texttt{Cosine} - thường cho khả năng hội tụ tốt hơn \texttt{linear} trong các tác vụ NLP khó như bài toán hiện tại.
+\end{itemize}
+
+\subsection{Loss Function}
+Sử dụng \textbf{DataCollatorForCompletionOnlyLM}:
+\begin{itemize}
+    \item Kỹ thuật này tự động mask toàn bộ phần \textit{Instruction}, \textit{Reference Example} và \textit{Input} trong quá trình tính toán Loss.
+    \item Mô hình chỉ bị phạt dựa trên sai số của phần \textit{Output} (Assistant Response). Điều này giúp mô hình tập trung hoàn toàn vào việc sinh ra kết quả đúng thay vì học thuộc lòng (overfitting).
+\end{itemize}
+
+
+\section{Chiến lược Prompt Engineering và Truy xuất ngữ cảnh}
+
+Để tận dụng tối đa khả năng của mô hình Xunzi-Qwen3-8B, nhóm em thiết kế một Prompt kết hợp giữa các ràng buộc và học theo ngữ cảnh động (Dynamic In-Context Learning) theo trong paper SPEADO.
+
+\subsection{Cấu trúc Prompt}
+
+Nhóm em sử dụng định dạng \textbf{ChatML} (Chat Markup Language) chuẩn của dòng Qwen để cấu trúc dữ liệu đầu vào. Một prompt hoàn chỉnh bao gồm ba thành phần chính:
+
+\begin{itemize}
+    \item \textbf{Vai trò & Ràng buộc:}
+    Định nghĩa persona cho mô hình là một "Chuyên gia Hán Cổ" và thiết lập 3 nguyên tắc bất di bất dịch để đảm bảo đầu ra được chuẩn hóa:
+    \begin{enumerate}
+        \item \textbf{Phân từ (Segmentation):} Sử dụng khoảng trắng bán giác (half-width space) để phân tách từ theo chuẩn EvaHan.
+        \item \textbf{Điểm câu (Punctuation):} Chỉ sử dụng tập dấu câu cho phép (\textit{Whitelist Punctuation Set}) bao gồm 26 ký tự (ví dụ: \texttt{，、。：...}). Dấu câu phải được gắn liền sau từ.
+        \item \textbf{Tính trung thực (Fidelity):} Tuyệt đối không được sửa đổi, thêm hoặc bớt bất kỳ ký tự Hán gốc nào (Non-hallucination constraint).
+    \end{enumerate}
+    
+    \item \textbf{Reference Block (tham chiếu):}
+    Nếu tìm thấy ví dụ tương đồng từ cơ chế \texttt{SpeadoRetriever}, khối này sẽ được chèn vào trước phần Input của user dưới dạng:
+    \begin{quote}
+        \texttt{\#\#\# Reference Example:}\\
+        \texttt{Original: [Câu gốc tương tự]}\\
+        \texttt{Annotation: [Câu đã chấm câu chuẩn]}
+    \end{quote}
+    
+    \item \textbf{User Input (Dữ liệu đầu vào):}
+    Đoạn văn bản cần xử lý (đã loại bỏ toàn bộ dấu câu).
+\end{itemize}
+
+\section{Chiến lược Retrieval-Augmented (class \texttt{SpeadoRetriever})}
+Lấy cảm hứng từ phương pháp \textbf{SPEADO}[cite: 954, 980], nhóm em tích hợp cơ chế \textit{In-Context Learning}. Thay vì chỉ đưa instruction, hệ thống sẽ tìm kiếm và chèn một ví dụ tham chiếu tương đồng nhất từ tập huấn luyện vào prompt để hướng dẫn mô hình.
+
+\subsection{MinHash LSH Indexing}
+Để tìm kiếm nhanh trong tập dữ liệu lớn, nhóm em sử dụng \textbf{MinHash Locality Sensitive Hashing (LSH)}[cite: 993, 994]:
+\begin{itemize}
+    \item \textbf{MinHash:} Mã hóa mỗi đoạn văn bản đích (đã loại bỏ dấu câu) thành một chữ ký số (signature) dựa trên tập hợp n-grams ký tự. Số lượng hoán vị (\texttt{num\_perm}) được thiết lập là $128$ để cân bằng giữa độ chính xác và tốc độ.
+    \item \textbf{LSH Index:} Xây dựng chỉ mục LSH với ngưỡng tương đồng (\texttt{threshold}) là $0.5$. Kỹ thuật này giúp lọc nhanh các ứng viên tiềm năng mà không cần so sánh từng đôi một và cũng đảm bảo chất lượng của các ví dụ được chọn (có mức độ liên quan nhất định với truy vấn).
+\end{itemize}
+
+\subsection{Robust Rescoring và Dynamic Injection}
+Kết quả từ LSH chỉ là danh sách ứng viên thô. Để chọn ra ví dụ tốt nhất, nhóm em áp dụng bước chấm điểm lại (Rescoring):
+\begin{itemize}
+    \item \textbf{Jaccard Similarity:} Tính độ tương đồng Jaccard chính xác trên tập ký tự (char-set) giữa câu truy vấn và các ứng viên.
+    \item \textbf{Ngưỡng lọc (Filtering Threshold):} Chỉ những ví dụ có điểm tương đồng $\ge 0.5$ mới được chọn làm \textit{Reference Example}. Điều này ngăn chặn việc đưa các ví dụ nhiễu (không liên quan) vào prompt, gây "ảo giác" cho mô hình.
+    \item \textbf{Prompt Construction:} Nếu tìm thấy Reference hợp lệ, prompt sẽ được bổ sung cấu trúc:
+    \begin{quote}
+    \textit{"### Tham khảo: [Ví dụ gốc] -> [Ví dụ đã phân tách] ... Hãy học theo logic trên."}
+    \end{quote}
+\end{itemize}
