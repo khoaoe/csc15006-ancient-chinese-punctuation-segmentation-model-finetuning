@@ -1,0 +1,45 @@
+% ==================================================================
+% CHAPTER 6: CONCLUSION AND FUTURE WORK
+% ==================================================================
+\chapter{Kết luận và Hướng phát triển tương lai}
+\label{chap:conclusion}
+
+\section{Tổng kết}
+
+Đồ án này đã nghiên cứu và giải quyết thành công bài toán Phân tách từ và Điểm câu cho văn bản Hán Cổ bằng cách tiếp cận hiện đại dựa trên Mô hình ngôn ngữ lớn. Các đóng góp chính của đồ án bao gồm:
+
+\begin{itemize}
+    \item \textbf{Xây dựng Pipeline huấn luyện tốt:} Nhóm đã fine-tune thành công mô hình \texttt{Xunzi-Qwen3-8B} sử dụng kỹ thuật \textbf{LoRA} kết hợp với thư viện \textbf{Unsloth}, cho phép huấn luyện hiệu quả trên đơn GPU với chiến lược "Small Batch Size".
+    
+    \item \textbf{Tích hợp cơ chế Retrieval-Augmented (SPEADO):} Đề xuất và triển khai thành công chiến lược tìm kiếm mẫu có độ tương đồng sử dụng \textbf{MinHash LSH} và \textbf{Jaccard Rescoring}. Kỹ thuật này giúp mô hình "học" được các mẫu câu phức tạp ngay trong ngữ cảnh.
+    
+    \item \textbf{Hệ thống Inference robust:} Thiết kế thuật toán \textbf{Sliding Window Keep-Center} kết hợp với \textbf{Post-hoc Robust Alignment}. Giải pháp này giải quyết triệt để vấn đề giới hạn độ dài context và hiện tượng ảo giác (hallucination), đảm bảo điểm số \textbf{Fidelity đạt tuyệt đối 1.0} trên tập kiểm thử.
+    
+    \item \textbf{Hiệu năng vượt trội:} Kết quả thực nghiệm cho thấy mô hình đề xuất vượt xa Baseline trên mọi chỉ số, với điểm tổng hợp \textbf{OSC tăng gấp 14 lần} ($0.034 \to 0.483$) và $F1_{seg}$ đạt tới $0.875$, khẳng định tính khả thi của việc ứng dụng LLM vào nghiên cứu Hán Nôm.
+\end{itemize}
+
+\section{Hạn chế}
+
+Bên cạnh những kết quả đạt được, hệ thống vẫn tồn tại một số hạn chế cần khắc phục:
+
+\begin{itemize}
+    \item \textbf{Độ nhạy với văn bản ngắn:} Như đã phân tích ở Chương 5, do thiếu ngữ cảnh và thước đo F1-score trừng phạt rất nặng các đoạn văn bản ngắn (dưới 10 ký tự). Dù hiệu năng thực tế tốt, các trường hợp biên này vẫn làm giảm điểm số trung bình chung.
+    
+    \item \textbf{Tốc độ suy luận:} Do bản chất của mô hình Autoregressive (sinh từng token) và quy trình Retrieval thời gian thực, tốc độ xử lý chậm hơn đáng kể so với các mô hình Sequence Labeling truyền thống (như BERT/BiLSTM-CRF).
+    
+    \item \textbf{Phụ thuộc dữ liệu huấn luyện:} Mô hình hoạt động rất tốt trên văn bản cùng miền (in-domain) như bộ EvaHan, nhưng hiệu năng có thể suy giảm với các văn bản thuộc triều đại khác hoặc thể loại thơ ca đặc thù chưa có trong tập train.
+    
+    \item \textbf{Thời gian và tài nguyên huấn luyện:} Quá trình fine-tuning dù đã được tối ưu nhưng vẫn đòi hỏi phần cứng GPU mạnh và thời gian huấn luyện khá dài (hơn 11 tiếng trên T4), do đó không có đủ tính linh hoạt cho việc thử nghiệm nhanh các cấu hình khác nhau.
+\end{itemize}
+
+\section{Hướng phát triển}
+
+Để nâng cao khả năng ứng dụng thực tế, nhóm em nghĩ tới các hướng phát triển sau:
+
+\begin{itemize}
+    \item \textbf{Tối ưu hóa triển khai:} Nghiên cứu áp dụng kỹ thuật lượng tử hóa sâu (4-bit/2-bit Quantization) hoặc chưng cất tri thức (Knowledge Distillation) để giảm kích thước mô hình, cho phép chạy trên các thiết bị biên hoặc máy tính cá nhân phổ thông.
+    
+    \item \textbf{Mở rộng miền dữ liệu (Domain Adaptation):} Thu thập thêm dữ liệu từ các bộ sử ký, văn bia, và thơ đường khác để tiếp tục pre-train hoặc fine-tune, hướng tới một mô hình "General Ancient Chinese" đa năng hơn.
+    
+    \item \textbf{Thêm mô hình để voting}: Theo paper SPEADO, có sử dụng 3 mô hình được fine-tune với các setting khác nhau để cùng dự đoán và voting lấy kết quả cuối cùng. Nhưng vì hạn chế về tài nguyên và thời gian kiểm thử nên nhóm chưa thực hiện được. Đây là một hướng phát triển khả thi đã được kiểm chứng để cải thiện hiệu năng.
+\end{itemize}
