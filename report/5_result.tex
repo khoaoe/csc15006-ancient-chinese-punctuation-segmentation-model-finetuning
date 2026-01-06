@@ -119,3 +119,34 @@ Từ phân tích trên có thể thấy mô hình dự đoán tệ ở những �
 \end{itemize}
 
 \textbf{Kết luận:} Việc đánh giá trên các đoạn văn bản quá ngắn (fragments) khiến thước đo F1 trở nên \textit{quá khắt khe}. Chỉ cần một sai sót nhỏ duy nhất cũng dẫn đến điểm số bằng 0, kéo tụt chỉ số trung bình của toàn hệ thống. Thực tế, với mức $F1_{punc} \approx 0.69$ trên các văn bản thông thường (không phải fragments), mô hình đã đạt độ chính xác rất cao và đủ khả năng ứng dụng thực tế, vượt xa con số $0.549$ hiển thị trên bảng tổng kết.
+
+\subsection{Phân tích sâu về sai số của dấu Chấm}
+
+Dựa trên báo cáo phân lớp, nhóm em phát hiện một vấn đề nghiêm trọng đối với một dấu quan trọng là dấu Chấm (\texttt{PERIOD} - 。): Dù đạt độ chính xác khá tốt ($0.70$), Recall lại thấp ($0.26$) => F1 chỉ đạt $0.38$, thấp hơn nhiều so với dấu Phẩy ($0.74$) hay dấu Hai chấm ($0.92$).
+
+Hiện tượng này có thể được giải thích qua các khía cạnh sau:
+
+\subsubsection{Hiện tượng mô hình quá cẩn trọng với dấu chấm}
+Chênh lệch lớn giữa Precision và Recall chỉ ra rằng mô hình đang hoạt động theo xu hướng \textit{"thà bỏ sót còn hơn bắt nhầm"}. 
+\begin{itemize}
+    \item Khi mô hình quyết định đặt dấu chấm, nó thường đúng ($70\%$).
+    \item Tuy nhiên, nó bỏ sót tới $74\%$ số dấu chấm thực tế trong tập dữ liệu.
+\end{itemize}
+Về mặt ngôn ngữ học, điều này dẫn đến hiện tượng \textbf{Under-segmentation} (Phân đoạn thiếu). Các câu văn thay vì được ngắt trọn vẹn, lại bị mô hình nối liền hoặc chỉ ngắt bằng dấu phẩy.
+
+\subsubsection{Sự nhập nhằng giữa Dấu chấm và Dấu phẩy}
+Nguyên nhân chính dẫn đến sai số này xuất phát từ đặc thù của văn bản Hán Cổ và sự mất cân bằng dữ liệu:
+
+\begin{enumerate}
+    \item \textbf{Mất cân bằng dữ liệu:} Trong tập kiểm thử, số lượng dấu Phẩy ($9,273$ mẫu) áp đảo so với dấu Chấm ($5,225$ mẫu). Khi mô hình gặp một ngữ cảnh mơ hồ, nơi có thể ngắt câu hoặc chỉ ngắt ý thìnó có xu hướng nghiêng về lớp chiếm đa số là dấu Phẩy để tối ưu hóa hàm Loss.
+    
+    \item \textbf{Tính mơ hồ của cú pháp cổ văn:} Khác với văn bản hiện đại có cấu trúc ngữ pháp "Chủ - Vị" rạch ròi, văn bản Hán Cổ thường sử dụng lối văn biền ngẫu. Ranh giới giữa một "câu" và một "vế câu" thường mong manh và phụ thuộc nhiều vào cảm nhận chủ quan của người gán nhãn.
+\end{enumerate}
+
+\subsubsection{Ảnh hưởng đến kết quả chung}
+Việc Recall của dấu Chấm thấp giải thích tại sao chỉ số $F1_{punc}$ $0.549$. Mô hình yếu trong việc quyết định "ngắt mạnh" (chấm câu) hay "ngắt nhẹ" (phẩy).
+
+\subsubsection{Cải thiện:} 
+Nhóm đã thử nghiệm kỹ thuật \textbf{Weighted Loss} để phạt lỗi với chấm câu sai. Tuy nhiên kết quả khi infer không cải thiện mà giảm nhẹ và trong paper SPEADO cũng đã kiểm chứng điều này (Mô hình M4 trong paper). Tuy nhiên nếu để mô hình này sử dụng như một "chuyên gia chấm câu" trong 3 mô hình voting trong paper SPEADO thì hiệu năng sẽ cải thiện rất nhiều.
+\\
+Tuy nhiên đáng tiếc là nhóm không kịp thời gian thực hiện mô hình thứ 3 và triển khai cơ chế voting trong InferencePipeline. 
