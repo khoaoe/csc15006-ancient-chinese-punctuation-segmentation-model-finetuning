@@ -11,12 +11,14 @@
 \begin{itemize}
     \item \textbf{Xây dựng Pipeline huấn luyện tốt:} Nhóm đã fine-tune thành công mô hình \texttt{Xunzi-Qwen3-8B} sử dụng kỹ thuật \textbf{LoRA} kết hợp với thư viện \textbf{Unsloth}, cho phép huấn luyện hiệu quả trên đơn GPU với chiến lược "Small Batch Size".
     
-    \item \textbf{Tích hợp cơ chế Retrieval-Augmented (SPEADO):} Đề xuất và triển khai thành công chiến lược tìm kiếm mẫu có độ tương đồng sử dụng \textbf{MinHash LSH} và \textbf{Jaccard Rescoring}. Kỹ thuật này giúp mô hình "học" được các mẫu câu phức tạp ngay trong ngữ cảnh.
+    \item \textbf{Tích hợp cơ chế Retrieval-Augmented (SPEADO):} Đề xuất và triển khai thành công chiến lược tìm kiếm mẫu có độ tương đồng sử dụng \textbf{MinHash LSH} và \textbf{Jaccard Rescoring}. Kỹ thuật này giúp mô hình học được các mẫu câu phức tạp ngay trong ngữ cảnh.
     
     \item \textbf{Hệ thống Inference robust:} Thiết kế thuật toán \textbf{Sliding Window Keep-Center} kết hợp với \textbf{Post-hoc Robust Alignment}. Giải pháp này giải quyết triệt để vấn đề giới hạn độ dài context và hiện tượng ảo giác (hallucination), đảm bảo điểm số \textbf{Fidelity đạt tuyệt đối 1.0} trên tập kiểm thử.
     
     \item \textbf{Hiệu năng vượt trội:} Kết quả thực nghiệm cho thấy mô hình đề xuất vượt xa Baseline trên mọi chỉ số, với điểm tổng hợp \textbf{OSC tăng gấp 14 lần} ($0.034 \to 0.483$) và $F1_{seg}$ đạt tới $0.875$, khẳng định tính khả thi của việc ứng dụng LLM vào nghiên cứu Hán Nôm.
 \end{itemize}
+
+Mô hình được fine-tuned hoàn toàn có thể áp dụng thực tế cho các nhiệm vụ xử lý văn bản Hán Cổ, hỗ trợ cho nghiên cứu các văn bản cổ đại phong phú của Việt Nam và Trung Quốc.
 
 \section{Hạn chế}
 
